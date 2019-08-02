@@ -1,4 +1,5 @@
-pacman::p_load(readr,caret,tidyverse,ggplot2,plotly, lubridate, ranger, rpart)
+pacman::p_load(readr,caret,tidyverse,ggplot2,plotly, lubridate, ranger,
+               DataExplorer)
 
 
 # Coments -----------------------------------------------------------------
@@ -15,12 +16,18 @@ pacman::p_load(readr,caret,tidyverse,ggplot2,plotly, lubridate, ranger, rpart)
 train <- read_csv("Data/trainingData.csv")
 train$is.train <- 1
 
+create_report(train %>% select(-contains("WAP")))
+
 model_building <- train %>% select(contains("WAP"),BUILDINGID,FLOOR,LONGITUDE,
                                    LATITUDE)
 model_building$FLOOR <- as.factor(model_building$FLOOR)
 model_building$BUILDINGID <- as.factor(model_building$BUILDINGID)
 model_building[, tail(names(model_building))]
 test <- read_csv("Data/validationData.csv")
+# the test data is using diferent phones than the train.
+unique(test$PHONEID) %in% unique(test$PHONEID)
+
+summary(test%>% select(-contains('WAP')))
 test$is.train <- 0
 fulldata <- rbind(train,test)
 glimpse(fulldata)
@@ -202,8 +209,7 @@ confusionMatrix(as.factor(test_building2floor$FLOOR),
 # floor building 1 error analysis -----------------------------------------
 
 
-erroranalysisF1B1 <- test %>% select(-contains("WAP"),-LONGITUDE,
-                                     -LATITUDE,-is.train) %>% 
+erroranalysisF1B1 <- test %>% select(-contains("WAP")) %>% 
   filter(BUILDINGID == 1) # %>% 
   # mutate(predictions = pred.ranger.building_1_floor$predictions) %>%
   # select(-BUILDINGID)
@@ -214,3 +220,18 @@ erroranalysisF1B1$misplaced <- erroranalysisF1B1$FLOOR !=
 # sum(erroranalysisF1B1$misplaced)
 errors_to_plot <- erroranalysisF1B1 %>% filter(misplaced == TRUE)
 errors_to_plot %>% group_by(USERID,PHONEID) %>% summarise(n())
+errors_to_plot %>% group_by(FLOOR,Predictions) %>% summarise(n())
+
+errors_to_plot %>% filter(FLOOR == 1 & Predictions == 2)
+
+summary(errors_to_plot)
+ggplot(errors_to_plot, aes(x=LATITUDE,y=LONGITUDE))+
+  geom_point()
+ggplot(errors_to_plot, aes(x=LATITUDE))+
+  geom_histogram(binwidth = 1,aes(fill = LONGITUDE))
+ggplot(errors_to_plot, aes(x=LONGITUDE))+
+  geom_histogram(binwidth = 1,aes(fill = LONGITUDE))
+
+create_report(errors_to_plot %>% filter(FLOOR == 1 & Predictions == 2) %>% 
+                select(-FLOOR,-BUILDINGID,-SPACEID,-RELATIVEPOSITION,
+                       -USERID, - Predictions))
